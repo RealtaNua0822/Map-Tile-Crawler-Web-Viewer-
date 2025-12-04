@@ -53,7 +53,7 @@ if "%choice%"=="2" (
     echo python -m src.tile_crawler --help
     echo.
     echo Example (download Beijing area):
-    echo python -m src.tile_crawler ^
+    echo python .\src_all\python\tile_crawler.py ^
     echo   --bbox 115.4,39.4,117.5,41.1 ^
     echo   --zoom 8 ^
     echo   --template "YOUR_TILE_URL_TEMPLATE" ^
@@ -80,9 +80,9 @@ if "%choice%"=="3" (
 
 if "%choice%"=="4" (
     echo.
-    echo Starting Flask web server...
+    echo Starting Flask web server (migrated)...
     echo.
-    python server.py
+    python .\src_all\python\server.py
     goto :eof
 )
 

@@ -23,9 +23,11 @@ CORS(app)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 配置瓦片目录
-TILES_DIR = Path(__file__).parent / 'out'
-MAPS_DIR = Path(__file__).parent / 'map'
+# 配置瓦片目录（指向仓库根的 out/ 和 map/）
+# file is at ex_1/src_all/python/server.py -> parents[2] == ex_1
+REPO_ROOT = Path(__file__).resolve().parents[2]
+TILES_DIR = REPO_ROOT / 'out'
+MAPS_DIR = REPO_ROOT / 'map'
 
 # 优先查找顺序：map/{z}/{x}/{y}.png（预生成）> out/{z}/{x}/{y}.png > out/{z}/{x}/{y}.webp
 PREFERRED_EXTS = ['png', 'webp', 'jpg', 'jpeg']

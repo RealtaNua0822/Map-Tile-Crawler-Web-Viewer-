@@ -55,6 +55,9 @@ switch ($choice) {
         Write-Host "  --template ""YOUR_TILE_URL_TEMPLATE"" ``" -ForegroundColor White
         Write-Host "  --outdir out ``" -ForegroundColor White
         Write-Host "  --convert-webp-to-png" -ForegroundColor White
+        Write-Host "" -ForegroundColor White
+        Write-Host "# 使用迁移后的脚本（同项目结构）示例：" -ForegroundColor Cyan
+        Write-Host "python .\\src_all\\python\\tile_crawler.py --bbox 115.4,39.4,117.5,41.1 --zoom 8 --template \"YOUR_TILE_URL_TEMPLATE\" --outdir out" -ForegroundColor White
         Write-Host ""
         Write-Host "See USAGE.md for more examples" -ForegroundColor Green
         Read-Host "Press Enter to continue"
@@ -75,10 +78,10 @@ switch ($choice) {
     
     "4" {
         Write-Host ""
-        Write-Host "Starting Flask web server..." -ForegroundColor Cyan
+        Write-Host "Starting Flask web server (using migrated location)..." -ForegroundColor Cyan
         Write-Host "Visit http://localhost:5000 in your browser" -ForegroundColor Green
         Write-Host ""
-        python server.py
+        python .\src_all\python\server.py
     }
     
     "5" {
