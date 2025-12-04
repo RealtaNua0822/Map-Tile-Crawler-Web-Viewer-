@@ -23,60 +23,108 @@
 
 ```powershell
 cd .\ex_1
-pip install -r requirements.txt
-# 运行服务器（使用迁移后的副本）
-python src_all\python\server.py
-# 或使用原始位置的 server.py：python server.py
-```
+# 地理栅格瓦片爬虫与发布系统
 
-下载瓦片示例（迁移后的爬虫副本）：
+本仓库为“地图瓦片爬虫与发布系统（ex_1）”。源码统一放在 `src_all/python/`，主要脚本及用途如下。若需回退，原始文档已备份到 `docs_backup/`。
 
+**仓库结构（关键）**
+- `src_all/python/` — Python 源文件：`tile_crawler.py`, `stitch_tiles.py`, `stitch_all.py`, `server.py`, `test_tiles.py`
+- `out/` — 瓦片存放路径（`out/{z}/{x}/{y}.png`）
+- `map/` — 拼接的地图图片输出
+- `requirements.txt` — Python 依赖
+
+下面按脚本逐一说明功能与使用示例。
+
+**`tile_crawler.py` — 瓦片爬虫**
+- 功能：根据经纬度 bbox 或 GeoJSON 计算瓦片范围，按模板并发下载瓦片到 `out/`。
+- 配置：支持从 JSON 文件读取 `headers`、`tokens`、`proxies`。默认搜索位置（优先级从高到低）：
+  - CLI 参数 `--config PATH`
+  - `src_all/python/config.json`
+  - 仓库根 `config.json`
+  - 当前工作目录 `config.json`
+- 优先级：内置 essential headers < config.json.headers < CLI `--headers` / `--referer` / `--user-agent`。
+- 常用参数（摘要）：
+  - `--bbox min_lon,min_lat,max_lon,max_lat`（批量）
+  - `--geojson path`（可选，替代 `--bbox`）
+  - `--zoom Z`（必需，批量抓取）
+  - `--template "...{z}/{x}/{y}..."`（URL 模板）
+  - `--outdir out`（输出目录，默认 `out`）
+  - `--concurrency N`（并发线程）
+  - `--config PATH`（指定 JSON 配置文件）
+  - `--single-url URL`（下载单个完整 URL）
+
+示例：
 ```powershell
-python src_all\python\tile_crawler.py --bbox 115.4,39.4,117.5,41.1 --zoom 8 --template "https://tile.openstreetmap.org/{z}/{x}/{y}.png" --outdir out
+# 从 config.json 读取 headers 并抓取 bbox
+python src_all\python\tile_crawler.py --bbox 115.4,39.4,117.5,41.1 --zoom 8 --template "https://tile.openstreetmap.org/{z}/{x}/{y}.png" --outdir out --config src_all\python\config.json
+
+# 直接在 CLI 指定额外 headers（覆盖 config）
+python src_all\python\tile_crawler.py --bbox 115.4,39.4,117.5,41.1 --zoom 8 --headers '{"Authorization":"Bearer TOKEN"}'
+
+# 下载单个 URL
+python src_all\python\tile_crawler.py --single-url "https://example.com/tile.png" --outdir out
 ```
 
-文件结构（当前）:
+示例 `config.json`（放在 `src_all/python/` 或仓库根）：
 
-```
-ex_1/
-├── src_all/
-│   ├── python/
-│   │   ├── tile_crawler.py
-   │   ├── stitch_tiles.py
-   │   ├── stitch_all.py
-   │   ├── server.py
-   │   └── test_tiles.py
-   ├── node_backend/
-   │   ├── server.js
-   │   ├── package.json
-   │   └── database.js
-   └── www/
-       └── index.html
-├── src/            # 原始 Python 源（仍保留）
-├── website0721/    # 原始网站项目（仍保留）
-├── out/
-├── map/
-├── requirements.txt
-├── quickstart.ps1
-├── quickstart.bat
-└── README.md       # (本文件，已合并文档)
+```json
+{
+  "headers": {
+    "Authorization": "Bearer <your-token>",
+    "Referer": "https://example.com/"
+  },
+  "tokens": {
+    "secretId": "...",
+    "clientId": "...",
+    "expireTime": "...",
+    "sign": "..."
+  },
+  "proxies": {
+    "http": "http://127.0.0.1:1080",
+    "https": "http://127.0.0.1:1080"
+  }
+}
 ```
 
-备注与建议：
-- 我只做了“复制与归档”，没有自动修改脚本中的相对导入或路径引用（例如 `from src.stitch_tiles import ...` 仍指向原位置）。如果你希望把工程切换为以 `src_all/` 为主目录，我可以：
-  - 更新 Python 导入路径（或添加 `src_all/python` 到 `PYTHONPATH`），
-  - 更新 `quickstart` 脚本中的启动路径，
-  - 或把原始文件移动（重命名为 `.bak`）并保证所有引用一致。
+**`stitch_tiles.py` — 瓦片拼接工具**
+- 功能：将指定 `out/{z}/{x}/{y}.*` 的瓦片拼接为一张完整图片并保存到 `map/`。
+- 使用示例：
+```powershell
+python src_all\python\stitch_tiles.py --z 8 --xmin 210 --xmax 213 --ymin 94 --ymax 99 --out map/stitched_z8.png
+```
 
-- 如果要将 Node 后端完全迁移，请告诉我是否需要我在 `src_all/node_backend/` 里运行 `npm install` 并修改 `server.js` 的静态路径。
+**`stitch_all.py` — 批量拼接**
+- 功能：对指定 zoom 列表或整个数据集，批量调用 `stitch_tiles` 并生成多级拼接图。
 
-下一步（可选）:
-- 我可以把原始源码从它们旧位置移动到 `src_all/`（删除或重命名原始文件），并调整启动脚本与导入以保持一致。
-- 或者我可以只做文档合并并保留原始位置不变（当前状态）。
+示例：
+```powershell
+python src_all\python\stitch_all.py --zooms 7 8 9 10
+```
 
-如果你想继续，我可以：
-1. 按你的偏好把文件“移动”（替换为单一源目录）并更新导入与脚本；
-2. 运行 `pytest` 或 `python test_tiles.py` 检查基础运行情况；
-3. 提交变更为一个 Git 分支（需你确认）。
+**`server.py` — 本地瓦片服务（Flask）**
+- 功能：提供接口 `GET /tiles/{z}/{x}/{y}.png`（从 `out/` 读取）和 `GET /api/tile-stats`（返回统计信息），用于本地预览或调试。
+- 快速启动：
+```powershell
+pip install -r requirements.txt
+python src_all\python\server.py
+# 访问 http://127.0.0.1:5000/tiles/8/210/95.png
+```
 
-请选择下一步或让我直接执行完整迁移（会修改/重命名原始文件）。
+**`test_tiles.py` — 简单文件存在性检查**
+- 功能：检查 `out/` 下各级目录的瓦片计数，并能测试若干示例瓦片是否存在。
+- 使用：
+```powershell
+python src_all\python\test_tiles.py
+```
+
+=== 额外说明 ===
+- 依赖：使用 `pip install -r requirements.txt` 安装（包括 `requests`, `Pillow`, `Flask`, `tqdm`）。
+- 配置优先级与安全：不要把生产 token/密钥直接提交到远端仓库（把它们放在本地 `config.json` 并列入 `.gitignore`）。
+- 如果需要我可以：
+  - 把 `config.json.example` 添加到仓库并在 `.gitignore` 中排除真实配置，
+  - 创建 Dockerfile 以便可重复部署，
+  - 把更改提交到当前分支 `now` 并打开 PR（需你确认 PR 描述）。
+
+如果你希望我现在：
+- 把示例 `config.json` 写入 `src_all/python/`（我可以现在创建）；
+- 或者更新 README 中的更多细节或示例脚本，请说明你想要的格式。

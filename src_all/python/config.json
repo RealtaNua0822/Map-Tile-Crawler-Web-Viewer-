@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "Authorization": "Bearer <your-token>",
+    "Referer": "https://example.com/"
+  },
+  "tokens": {
+    "secretId": "",
+    "clientId": "",
+    "expireTime": "",
+    "sign": ""
+  },
+  "proxies": {
+    "http": "",
+    "https": ""
+  }
+}

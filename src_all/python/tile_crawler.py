@@ -12,6 +12,7 @@ import os
 import time
 import json
 import argparse
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 try:
@@ -184,7 +185,7 @@ def download_tile(session, url, out_path, timeout=15, retries=2, headers=None, s
     return False
 
 
-def download_tile_range(template, z, x_range, y_range, outdir='out', concurrency=8, rate=0.05, headers=None, skip_existing=True, timeout=15, retries=2, tokens=None, convert_webp_to_png=False):
+def download_tile_range(template, z, x_range, y_range, outdir='out', concurrency=8, rate=0.05, headers=None, skip_existing=True, timeout=15, retries=2, tokens=None, convert_webp_to_png=False, proxies=None):
     xmin, xmax = x_range
     ymin, ymax = y_range
     tasks = []
@@ -194,6 +195,11 @@ def download_tile_range(template, z, x_range, y_range, outdir='out', concurrency
 
     total = len(tasks)
     session = requests.Session()
+    if proxies:
+        try:
+            session.proxies.update(proxies)
+        except Exception:
+            pass
 
     successes = 0
     failures = 0
@@ -268,9 +274,10 @@ def main():
     parser.add_argument('--sign', type=str, help='模板中使用的 sign')
     parser.add_argument('--convert-webp-to-png', action='store_true', help='将下载到的 webp 图片转换为 PNG')
     parser.add_argument('--dry-run', action='store_true', help='只计算瓦片范围与数量，不进行下载')
+    parser.add_argument('--config', type=str, help='JSON 配置文件路径，优先读取 headers、tokens、proxies 等')
     args = parser.parse_args()
 
-    # default essential headers (can be overridden by --headers)
+    # default essential headers (can be overridden by config.json and/or --headers)
     essential_headers = {
         'Accept': 'image/webp,*/*',
         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
@@ -284,8 +291,38 @@ def main():
         'Priority': 'u=1, i',
     }
 
-    # build headers from CLI and merge with essentials
+    # load optional JSON config (search order: --config, script dir config.json, repo root config.json, cwd/config.json)
+    config = {}
+    candidates = []
+    if args.config:
+        candidates.append(args.config)
+    candidates.append(str(Path(__file__).resolve().parent / 'config.json'))
+    try:
+        repo_root = Path(__file__).resolve().parents[2]
+        candidates.append(str(repo_root / 'config.json'))
+    except Exception:
+        pass
+    candidates.append(str(Path.cwd() / 'config.json'))
+
+    for p in candidates:
+        try:
+            if p and Path(p).exists():
+                with open(p, 'r', encoding='utf-8') as fh:
+                    config = json.load(fh) or {}
+                print(f'Loaded config from: {p}')
+                break
+        except Exception:
+            continue
+
+    # build headers with precedence: essential_headers <- config.headers <- CLI headers / referer / user-agent
     hdrs = essential_headers.copy()
+    try:
+        cfg_hdrs = config.get('headers') if isinstance(config, dict) else None
+        if isinstance(cfg_hdrs, dict):
+            hdrs.update(cfg_hdrs)
+    except Exception:
+        pass
+
     if args.referer:
         hdrs['Referer'] = args.referer
     if args.user_agent:
@@ -298,13 +335,22 @@ def main():
         except Exception:
             print('警告：无法解析 --headers JSON，忽略')
 
-    # prepare tokens for template
+    # tokens priority: CLI args override config tokens
+    cfg_tokens = config.get('tokens') if isinstance(config, dict) else {}
     tokens = {
-        'secretId': args.secretId or '',
-        'clientId': args.clientId or '',
-        'expireTime': args.expireTime or '',
-        'sign': args.sign or '',
+        'secretId': args.secretId or cfg_tokens.get('secretId', ''),
+        'clientId': args.clientId or cfg_tokens.get('clientId', ''),
+        'expireTime': args.expireTime or cfg_tokens.get('expireTime', ''),
+        'sign': args.sign or cfg_tokens.get('sign', ''),
     }
+
+    # proxies (optional) from config
+    proxies = None
+    try:
+        if isinstance(config, dict) and config.get('proxies'):
+            proxies = config.get('proxies')
+    except Exception:
+        proxies = None
 
     if args.single_url:
         url = args.single_url
@@ -347,7 +393,7 @@ def main():
     total_tiles = (x_range[1] - x_range[0] + 1) * (y_range[1] - y_range[0] + 1)
     print(f'Zoom {args.zoom} X range: {x_range} Y range: {y_range} total tiles: {total_tiles}')
 
-    res = download_tile_range(args.template, args.zoom, x_range, y_range, outdir=args.outdir, concurrency=args.concurrency, rate=args.rate, headers=hdrs, skip_existing=args.skip_existing, timeout=args.timeout, retries=args.retries, tokens=tokens, convert_webp_to_png=args.convert_webp_to_png)
+    res = download_tile_range(args.template, args.zoom, x_range, y_range, outdir=args.outdir, concurrency=args.concurrency, rate=args.rate, headers=hdrs, skip_existing=args.skip_existing, timeout=args.timeout, retries=args.retries, tokens=tokens, convert_webp_to_png=args.convert_webp_to_png, proxies=proxies)
     print('下载结果：', res)
 
 
