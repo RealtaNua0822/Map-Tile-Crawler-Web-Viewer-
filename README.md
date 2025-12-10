@@ -34,7 +34,10 @@ your-project/
 ## 🛠️ 快速开始
 
 ### 1️⃣ 下载瓦片（示例：北京 zoom 7-9）
-
+```bash
+python tile_crawler.py --config config.json
+```
+或者
 ```bash
 python -m src.tile_crawler \
   --bbox 115.4,39.4,117.5,41.1 \
@@ -50,6 +53,10 @@ python -m src.tile_crawler \
 
 ### 2️⃣ 拼接为大图（可选）
 
+```bash
+python stitch_tiles.py --config config.json
+```
+
 #### 单缩放级别拼接：
 ```bash
 python -m src.stitch_tiles \
@@ -57,16 +64,6 @@ python -m src.stitch_tiles \
   --bbox 115.4,39.4,117.5,41.1 \
   --input-dir out \
   --output map/beijing_z8.png
-```
-
-#### 批量多级拼接：
-```bash
-python -m src.stitch_all \
-  --bbox 115.4,39.4,117.5,41.1 \
-  --min-zoom 7 \
-  --max-zoom 9 \
-  --input-dir out \
-  --output-dir map
 ```
 
 > 📌 输出文件名格式：`{minLon}_{minLat}_{maxLon}_{maxLat}_z{z}.png`
@@ -153,8 +150,4 @@ MIT License — 自由使用、修改、分发。
 ---
 
 > 🌍 **让地图，尽在掌握。**  
-> 项目维护：@your-name | 更新时间：2025年12月
-
----
-
-你可以将此内容保存为项目根目录下的 `README.md`，方便自己或团队快速上手！如果需要添加截图、配置示例或 Docker 部署说明，也可以继续扩展。需要我帮你生成带图标的版本或 PDF 手册吗？
+> 项目维护：@realtanua | 更新时间：2025年12月
