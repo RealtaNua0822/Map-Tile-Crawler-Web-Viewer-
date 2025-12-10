@@ -1,130 +1,160 @@
-# 地理栅格瓦片爬虫与发布系统
+当然可以！以下是一份完整、清晰、专业的 `README.md`，适用于你的瓦片地图处理项目（包含爬虫、拼接、服务三大模块）：
 
-# 项目总览（已合并）
+---
 
-此仓库为“地图瓦片爬虫与发布系统”。我已将源代码复制到统一目录 `src_all/`（见下文），并把文档合并为本文件的精简版本。原始文档已备份到 `docs_backup/`。
+# 🗺️ 离线瓦片地图处理工具集
 
-目的：
-- 将所有源码放在一个易查找的位置，便于维护与发布。
-- 把散落的说明合并为单一 `README.md`，便于快速上手。
+本项目提供一套完整的 **离线地图处理流水线**，支持：
+- 📥 **下载**指定区域的在线地图瓦片（如天地图、高德、Google 等）
+- 🧩 **拼接**瓦片为单张大图（PNG）
+- 🌐 **发布**本地瓦片服务，通过浏览器交互式浏览
 
-重要：迁移为“复制”，原始文件仍保留在原路径。若需要我可以执行移除或重命名原始文件。
+> 适用于科研、测绘、应急、内网部署等无外网或需离线使用的场景。
 
-**统一源码位置**
-- `src_all/python/` — Python 源文件（`tile_crawler.py`, `stitch_tiles.py`, `stitch_all.py`, `server.py`, `test_tiles.py`）
-- `src_all/node_backend/` — Node 后端（`server.js`, `package.json`, `database.js`）
-- `src_all/www/` — 静态前端页面（`index.html` 占位）
+---
 
-快速说明：
-- Python 服务仍依赖 `requirements.txt`（根目录），可按原方式安装。
-- Node 后端在 `src_all/node_backend/`，可用 `npm install` 之后 `npm start` 启动（如需要）。
+## 📂 项目结构
 
-快速开始（Python）：
-
-```powershell
-cd .\ex_1
-# 地理栅格瓦片爬虫与发布系统
-
-本仓库为“地图瓦片爬虫与发布系统（ex_1）”。源码统一放在 `src_all/python/`，主要脚本及用途如下。若需回退，原始文档已备份到 `docs_backup/`。
-
-**仓库结构（关键）**
-- `src_all/python/` — Python 源文件：`tile_crawler.py`, `stitch_tiles.py`, `stitch_all.py`, `server.py`, `test_tiles.py`
-- `out/` — 瓦片存放路径（`out/{z}/{x}/{y}.png`）
-- `map/` — 拼接的地图图片输出
-- `requirements.txt` — Python 依赖
-
-下面按脚本逐一说明功能与使用示例。
-
-**`tile_crawler.py` — 瓦片爬虫**
-- 功能：根据经纬度 bbox 或 GeoJSON 计算瓦片范围，按模板并发下载瓦片到 `out/`。
-- 配置：支持从 JSON 文件读取 `headers`、`tokens`、`proxies`。默认搜索位置（优先级从高到低）：
-  - CLI 参数 `--config PATH`
-  - `src_all/python/config.json`
-  - 仓库根 `config.json`
-  - 当前工作目录 `config.json`
-- 优先级：内置 essential headers < config.json.headers < CLI `--headers` / `--referer` / `--user-agent`。
-- 常用参数（摘要）：
-  - `--bbox min_lon,min_lat,max_lon,max_lat`（批量）
-  - `--geojson path`（可选，替代 `--bbox`）
-  - `--zoom Z`（必需，批量抓取）
-  - `--template "...{z}/{x}/{y}..."`（URL 模板）
-  - `--outdir out`（输出目录，默认 `out`）
-  - `--concurrency N`（并发线程）
-  - `--config PATH`（指定 JSON 配置文件）
-  - `--single-url URL`（下载单个完整 URL）
-
-示例：
-```powershell
-# 从 config.json 读取 headers 并抓取 bbox
-python src_all\python\tile_crawler.py --bbox 115.4,39.4,117.5,41.1 --zoom 8 --template "https://tile.openstreetmap.org/{z}/{x}/{y}.png" --outdir out --config src_all\python\config.json
-
-# 直接在 CLI 指定额外 headers（覆盖 config）
-python src_all\python\tile_crawler.py --bbox 115.4,39.4,117.5,41.1 --zoom 8 --headers '{"Authorization":"Bearer TOKEN"}'
-
-# 下载单个 URL
-python src_all\python\tile_crawler.py --single-url "https://example.com/tile.png" --outdir out
+```text
+your-project/
+├── out/                 # ← 下载的原始瓦片（256x256 小图）
+│   └── {z}/{x}/{y}.webp
+├── map/                 # ← 拼接后的大图（可选）
+│   └── minLon_minLat_maxLon_maxLat_z{z}.png
+├── server.py            # 本地瓦片地图服务器
+├── src/
+│   ├── tile_crawler.py  # 瓦片下载器
+│   ├── stitch_tiles.py  # 单级拼接
+│   └── stitch_all.py    # 多级批量拼接
+└── README.md
 ```
 
-示例 `config.json`（放在 `src_all/python/` 或仓库根）：
+---
 
-```json
-{
-  "headers": {
-    "Authorization": "Bearer <your-token>",
-    "Referer": "https://example.com/"
-  },
-  "tokens": {
-    "secretId": "...",
-    "clientId": "...",
-    "expireTime": "...",
-    "sign": "..."
-  },
-  "proxies": {
-    "http": "http://127.0.0.1:1080",
-    "https": "http://127.0.0.1:1080"
-  }
-}
+## 🛠️ 快速开始
+
+### 1️⃣ 下载瓦片（示例：北京 zoom 7-9）
+
+```bash
+python -m src.tile_crawler \
+  --bbox 115.4,39.4,117.5,41.1 \
+  --min-zoom 7 \
+  --max-zoom 9 \
+  --output-dir out \
+  --format webp
 ```
 
-**`stitch_tiles.py` — 瓦片拼接工具**
-- 功能：将指定 `out/{z}/{x}/{y}.*` 的瓦片拼接为一张完整图片并保存到 `map/`。
-- 使用示例：
-```powershell
-python src_all\python\stitch_tiles.py --z 8 --xmin 210 --xmax 213 --ymin 94 --ymax 99 --out map/stitched_z8.png
+> ✅ 瓦片将保存为 `out/{z}/{x}/{y}.webp`
+
+---
+
+### 2️⃣ 拼接为大图（可选）
+
+#### 单缩放级别拼接：
+```bash
+python -m src.stitch_tiles \
+  --zoom 8 \
+  --bbox 115.4,39.4,117.5,41.1 \
+  --input-dir out \
+  --output map/beijing_z8.png
 ```
 
-**`stitch_all.py` — 批量拼接**
-- 功能：对指定 zoom 列表或整个数据集，批量调用 `stitch_tiles` 并生成多级拼接图。
-
-示例：
-```powershell
-python src_all\python\stitch_all.py --zooms 7 8 9 10
+#### 批量多级拼接：
+```bash
+python -m src.stitch_all \
+  --bbox 115.4,39.4,117.5,41.1 \
+  --min-zoom 7 \
+  --max-zoom 9 \
+  --input-dir out \
+  --output-dir map
 ```
 
-**`server.py` — 本地瓦片服务（Flask）**
-- 功能：提供接口 `GET /tiles/{z}/{x}/{y}.png`（从 `out/` 读取）和 `GET /api/tile-stats`（返回统计信息），用于本地预览或调试。
-- 快速启动：
-```powershell
-pip install -r requirements.txt
-python src_all\python\server.py
-# 访问 http://127.0.0.1:5000/tiles/8/210/95.png
+> 📌 输出文件名格式：`{minLon}_{minLat}_{maxLon}_{maxLat}_z{z}.png`
+
+---
+
+### 3️⃣ 启动本地地图服务
+
+```bash
+python server.py
 ```
 
-**`test_tiles.py` — 简单文件存在性检查**
-- 功能：检查 `out/` 下各级目录的瓦片计数，并能测试若干示例瓦片是否存在。
-- 使用：
-```powershell
-python src_all\python\test_tiles.py
-```
+然后访问：  
+👉 [http://localhost:5000](http://localhost:5000)
 
-=== 额外说明 ===
-- 依赖：使用 `pip install -r requirements.txt` 安装（包括 `requests`, `Pillow`, `Flask`, `tqdm`）。
-- 配置优先级与安全：不要把生产 token/密钥直接提交到远端仓库（把它们放在本地 `config.json` 并列入 `.gitignore`）。
-- 如果需要我可以：
-  - 把 `config.json.example` 添加到仓库并在 `.gitignore` 中排除真实配置，
-  - 创建 Dockerfile 以便可重复部署，
-  - 把更改提交到当前分支 `now` 并打开 PR（需你确认 PR 描述）。
+#### 特性：
+- 自动扫描 `out/` 目录，**动态定位到你已下载的区域**
+- 实时显示当前缩放级别、瓦片坐标、经纬度
+- 支持 CORS，可被 QGIS、OpenLayers 等外部工具调用
+- 缺失瓦片显示透明占位图，不影响浏览
 
-如果你希望我现在：
-- 把示例 `config.json` 写入 `src_all/python/`（我可以现在创建）；
-- 或者更新 README 中的更多细节或示例脚本，请说明你想要的格式。
+---
+
+## 🔍 目录说明
+
+| 目录/文件 | 用途 |
+|----------|------|
+| `out/` | **核心数据目录**：存放原始 XYZ 瓦片（必须） |
+| `map/` | 拼接后的大图输出目录（可选） |
+| `server.py` | 本地瓦片服务器（从 `out/` 读取） |
+| `src/` | 所有处理脚本 |
+
+> 💡 `server.py` 会自动从**与自身同目录的 `out/`** 读取瓦片，无需修改路径。
+
+---
+
+## 🌐 瓦片服务接口
+
+| 接口 | 说明 |
+|------|------|
+| `GET /` | 交互式地图首页（Leaflet） |
+| `GET /tiles/{z}/{x}/{y}.png` | 标准瓦片接口（支持 WebP/JPG → 自动转 PNG） |
+| `GET /api/tile-stats` | 返回各缩放级别的瓦片数量统计 |
+
+> ✅ 可直接在 QGIS 中添加 XYZ 图层，URL 填：  
+> `http://localhost:5000/tiles/{z}/{x}/{y}.png`
+
+---
+
+## ⚙️ 依赖
+
+- Python ≥ 3.7
+- 第三方库：
+  ```bash
+  pip install flask flask-cors pillow requests tqdm
+  ```
+
+> 📌 `Pillow` 用于图像格式转换和占位图生成。
+
+---
+
+## 📝 注意事项
+
+- **瓦片坐标系**：采用标准 Slippy Map (XYZ) 坐标系（Google/OSM 兼容）
+- **仅限本地开发**：Flask 内置服务器不适合生产环境
+- **内存与磁盘**：高 zoom（如 z≥12）拼接图可能极大（数 GB），请谨慎使用
+- **缺失瓦片**：若某 `(x,y,z)` 不存在，服务返回透明 PNG，前端不会报错
+
+---
+
+## 🎯 典型应用场景
+
+- 🏙️ 制作某城市的离线底图
+- 🛰️ 应急指挥系统中的无网地图支持
+- 📊 科研论文中的高清区域地图导出
+- 🧪 地理数据预标注前的底图准备
+
+---
+
+## 📜 许可证
+
+MIT License — 自由使用、修改、分发。
+
+---
+
+> 🌍 **让地图，尽在掌握。**  
+> 项目维护：@your-name | 更新时间：2025年12月
+
+---
+
+你可以将此内容保存为项目根目录下的 `README.md`，方便自己或团队快速上手！如果需要添加截图、配置示例或 Docker 部署说明，也可以继续扩展。需要我帮你生成带图标的版本或 PDF 手册吗？
