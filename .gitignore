@@ -1,0 +1,19 @@
+# Ignore local config containing tokens/secrets
+src_all/python/config.json
+
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+
+# Python virtualenv
+venv/
+.env
+
+# LaTeX auxiliary files
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
